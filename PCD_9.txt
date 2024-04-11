@@ -1,0 +1,234 @@
+# slr parsing
+
+from collections import defaultdict
+from prettytable import PrettyTable
+
+def slr(s, parsing_table, n_nt, stack, action_l):
+
+    table = PrettyTable()
+    table.field_names = ["Stack", "Action", "Input String"]
+
+    while len(s):
+        action = parsing_table[stack[-1]][s[0]]
+
+        if action == "ACCEPT":
+            action_l.append(action)
+            print("-> ACCEPTED")
+            break
+        if action == "-":
+            action_l.append("not accepted")
+            print("-> REJECTED")
+            break
+
+        s_shift = action.split(":")
+        action_l.append(s_shift[0] + " " + s_shift[1])
+
+        if s_shift[0] == "Shift":
+            stack.append(s[0])
+            stack.append(s_shift[1])
+            s = s[1:]
+        elif s_shift[0] == "Reduce":
+            s_reduce = s_shift[1].split("->")
+            replace_string = ""
+            stack_replace_string = ""
+
+            for i in range(len(stack) - 1, 0, -1):
+                stack_replace_string += stack[i]
+                if stack[i] in n_nt:
+                    replace_string += stack[i]
+
+                rev_s = replace_string[::-1]
+                if rev_s == s_reduce[1]:
+                    break
+
+            for i in range(len(stack_replace_string)):
+                stack.pop()
+            stack.append(s_reduce[0])
+            stack.append(parsing_table[stack[-2]][stack[-1]])
+
+        table.add_row(["".join(stack), action_l[-1], s])
+    print("\n\nPARSING TABLE\n")
+    print(table)
+
+with open("slr_table.txt",'r') as file:
+    f=file.readlines()
+
+parsing_table = defaultdict(dict)
+n_nt = []
+
+for line in f:
+    x = line.strip('\n')
+    y = x.split()
+    if y[0] == "states":
+        n_nt = y[1:]
+        print(n_nt)
+        continue
+    for i in range(len(n_nt)):
+        parsing_table[y[0]][n_nt[i]] = y[i + 1]
+
+
+
+s = input("Enter input string: ")
+s += "$"
+stack = ['0']
+action_l = []
+slr(s, parsing_table, n_nt,stack,action_l)
+
+#i+i*i
+
+------------------------------------------------------
+
+
+# Three address code - QUADRUPLES
+
+from prettytable import PrettyTable
+
+exp = input("Enter arithmetic expression with appropriate brackets: ")
+print("\nARITHMETIC EXPRESSION: ", exp)
+
+operators=['*','+','-','/']
+asg = exp[0]
+stack = []
+
+
+#print("ASG: ", asg)
+#print("EXP: ", exp)
+
+int_code = {}
+count = 0
+
+for i in range(len(exp)):
+    if exp[i] == ')':
+        s = ''
+        while stack[-1] != '(':
+            s = stack.pop()+s
+        stack.pop()  # Remove the '('
+
+        count += 1
+        temp_var = 'T' + str(count)
+        int_code[temp_var] = s
+        stack.append(temp_var)
+    else:
+        stack.append(exp[i])
+
+int_code[asg]='T'+str(count)
+
+print("\n\nFinal Three Address Code:\n")
+for key, value in int_code.items():
+    print(key, '=', value)
+
+op=[]
+arg1=[]
+arg2=[]
+res=[]
+print("\n\nQUADRAPLES\n")
+for k,v in int_code.items():
+
+  if v[0]=='-':
+    op.append(v[0])
+    arg1.append(v[1:])
+    arg2.append('-')
+    res.append(k)
+  else:
+    flag=0
+    for i in operators:
+      if i in v:
+        flag=1
+        ind=v.index(i)
+        op.append(v[ind])
+        arg1.append(v[0:ind])
+        arg2.append(v[ind+1:])
+        res.append(k)
+        break
+    if flag==0:
+      op.append('=')
+      arg1.append(v)
+      arg2.append('-')
+      res.append(k)
+
+table=PrettyTable(['OPERATOR','ARG1','ARG2','RESULT'])
+
+for i in range(len(op)):
+  table.add_row([''.join(op[i]),''.join(arg1[i]),''.join(arg2[i]),''.join(res[i])])
+
+print(table)
+
+#A=((A+(B*C))-D)
+#A=((-B)+(C*D))
+
+---------------------------------------------------------------------------------
+
+
+# Three address code - TRIPLES
+
+from prettytable import PrettyTable
+
+exp = input("Enter arithmetic expression with appropriate brackets: ")
+print("\nARITHMETIC EXPRESSION: ", exp)
+
+operators=['*','+','-','/']
+asg = exp[0]
+stack = []
+
+#print("ASG: ", asg)
+#print("EXP: ", exp)
+
+int_code = {}
+count = 0
+
+for i in range(len(exp)):
+    if exp[i] == ')':
+        s = ''
+        while stack[-1] != '(':
+            s = stack.pop()+s
+        stack.pop()  # To Remove '('
+
+        count += 1
+        temp_var ='('+ str(count)+')'
+        int_code[temp_var] = s
+        stack.append(temp_var)
+    else:
+        stack.append(exp[i])
+
+int_code[asg]='('+ str(count)+')'
+
+print("\n\nFinal Three Address Code:\n")
+for key, value in int_code.items():
+    print(key, '=', value)
+
+op=[]
+arg1=[]
+arg2=[]
+
+print("\nTRIPLES\n")
+for k,v in int_code.items():
+
+  if v[0]=='-':
+    op.append(v[0])
+    arg1.append(v[1:])
+    arg2.append('-')
+  else:
+    flag=0
+    for i in operators:
+      if i in v:
+        flag=1
+        ind=v.index(i)
+        op.append(v[ind])
+        arg1.append(v[0:ind])
+        arg2.append(v[ind+1:])
+        break
+    if flag==0:
+      op.append('=')
+      arg1.append(k)
+      arg2.append(v)
+
+table=PrettyTable(['OPERATOR','ARG1','ARG2'])
+
+for i in range(len(op)):
+  table.add_row([''.join(op[i]),''.join(arg1[i]),''.join(arg2[i])])
+
+print(table)
+
+
+#A=((A+(B*C))-D)
+#A=((-B)+(C*D))
