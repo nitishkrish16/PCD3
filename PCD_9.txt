@@ -232,3 +232,210 @@ print(table)
 
 #A=((A+(B*C))-D)
 #A=((-B)+(C*D))
+
+------------------------------
+
+
+# harini code for slr
+from collections import defaultdict
+states=defaultdict(list)
+first_dict=defaultdict(list)
+follow_dict=defaultdict(list)
+goto_table=defaultdict(dict)
+slr_table=defaultdict(dict)
+
+def first(gram):
+  new=defaultdict(list)
+  for k,v in gram.items():
+    for i in v:
+      if not i[0].isupper():
+        new[k].append(i[0])
+      else:
+        if i[0] in new:
+          new[k].extend(new[i[0]])
+  return new
+
+def findFollow(start, grammar, first):
+  res = defaultdict(list)
+  res[start] = ["$"]
+  tobeDone = []
+  for each in grammar:
+    for prod in grammar[each]:
+      i = 0
+      while i < len(prod):
+        if prod[i].isupper():
+          if i+1<len(prod):
+            if not prod[i+1].isupper():
+              res[prod[i]].append(prod[i+1])
+              res[prod[i]] = list(set(res[prod[i]]))
+            else:
+              res[prod[i]].extend(first[prod[i+1]])
+              res[prod[i]] = list(set(res[prod[i]]))
+              if "ε" in first[prod[i+1]]:
+                if each in res:
+                  res[prod[i]].extend(res[each])
+                  res[prod[i]] = list(set(res[prod[i]]))
+                  tobeDone.append([each, prod[i]])
+          else:
+            if each in res:
+              res[prod[i]].extend(res[each])
+              res[prod[i]] = list(set(res[prod[i]]))
+              tobeDone.append([each, prod[i]])
+        i+=1
+  for each_key in tobeDone:
+    res[each_key[1]].extend(res[each_key[0]])
+    res[each_key[1]] = list(set(res[each_key[1]]))
+    if "ε" in res[each_key[1]]:
+      res[each_key[1]].remove("ε")
+  return res
+
+def closure(productions):
+  i=0
+  while i < len(productions):
+      prd=productions[i]
+      i+=1
+      split=prd.split("->")
+      rhs=split[1]
+      if "." in rhs:
+        dot_index=rhs.index(".")
+        #checking whether the symbol after . is non terminal
+        if dot_index+1 < len(rhs) and rhs[dot_index+1] in non_terminals:
+          nonterm=rhs[dot_index+1]
+          #prod starting from that non term
+          for prod_rhs in prod[nonterm]:
+            prod_new = nonterm+"->."+prod_rhs
+            if prod_new not in productions:
+              productions.append(prod_new)
+  return productions
+
+def goto(item, gram_symbol):
+    productions=[]
+    #finding the production for which the closure is to be found
+    for production in item:
+       split=production.split("->")
+       rhs=split[1]
+       if "." in rhs:
+         dot_index=rhs.index(".")
+         if dot_index+1 < len(rhs) and rhs[dot_index+1]==gram_symbol:
+            new_production=production.replace("."+gram_symbol,gram_symbol+".")
+            productions.append(new_production)
+    if len(productions)>0:
+      return closure(productions)
+    return productions
+
+def lritems():
+  #finding closure of first augumented prod
+  aug_gram_start=aug_gram.replace("->","->.")
+  c=closure([aug_gram_start])
+  states["0"]=c
+  i=0
+  while i < len(states.keys()):
+      item = states[str(i)]
+      symbols = []
+      symbols.extend(non_terminals)
+      symbols.extend(terminals)
+      #along with item each non terminal and terminals passed in goto
+      for sym in symbols:
+        goto_list = goto(item,sym)
+        goto_table[str(i)][sym]="-"
+        #finding next state number
+        if len(goto_list)>0 and  goto_list not in list(states.values()):
+          state_no=len(states.keys())
+          states[str(state_no)]=goto_list
+        if len(goto_list)>0:
+          state_no_goto_list=str(list(states.values()).index(goto_list))
+          print("goto(",str(i),",",sym,")  ---------  ",state_no_goto_list," ----- ",goto_list)
+          goto_table[str(i)][sym]=state_no_goto_list
+      i+=1
+  print("\nLR() ITEMS: ")
+  #PRINTING LR ITEMS
+  for state in states:
+    print(state,"---------",states[state])
+
+def find_slr_table():
+    for state in states:
+      #initializing the table
+      for i in terminals:
+        slr_table[state][i]="-"
+      slr_table[state]["$"]="-"
+      for i in non_terminals:
+        slr_table[state][i]="-"
+
+      for item in states[state]:
+          split=item.split("->")
+          lhs=split[0]
+          rhs=split[1]
+          if "." in rhs:
+            dot_index=rhs.index(".")
+            if dot_index+1 < len(rhs):
+                #A->a.Bbeta ------ from item with nonterm B going to which state j
+               if rhs[dot_index+1] in non_terminals:
+                  nonterm=rhs[dot_index+1]
+                  slr_table[state][nonterm] = goto_table[state][nonterm]
+                #A->a.abeta ------ from item with term a ----- shift j
+               elif rhs[dot_index+1] in terminals:
+                  term=rhs[dot_index+1]
+                  if goto_table[state][term]:
+                    slr_table[state][term] ="Shift:"+goto_table[state][term]
+            #A->a.
+            if dot_index+1==len(rhs):
+              #augumented gram
+              if item == aug_gram+".":
+                slr_table[state]["$"]="ACCEPT"
+              #reduce
+              else:
+                for follow in follow_dict[lhs]:
+                  slr_table[state][follow]="Reduce:"+item.replace(".","")
+
+
+prod=defaultdict(list)
+start_symbol = 'S'
+start_dash = start_symbol+"'"
+aug_gram = start_dash+"->"+start_symbol
+productions = {'S': ['CC'], 'C': ['cC', 'd']}
+prod[start_dash] = start_symbol
+prod.update(productions)
+terminals = ['c', 'd']
+non_terminals = ['S', 'C']
+"""start_symbol = 'E'
+start_dash = start_symbol+"'"
+aug_gram = start_dash+"->"+start_symbol
+productions = {'E': ['E+T', 'T'], 'T': ['T*F', 'F'], 'F':['i']}
+prod[start_dash] = start_symbol
+prod.update(productions)
+terminals = ['+', '*', 'i']
+non_terminals = ['E', 'T', 'F']"""
+print("------------------------------------------------------------------------------\n")
+print("Terminals : ", terminals)
+print("Non Terminals : ", non_terminals)
+print("Productions : ", prod)
+print("------------------------------------------------------------------------------\n")
+print("GOTO : \n")
+lritems()
+print("------------------------------------------------------------------------------\n")
+#gramR = {'F':['i'],'T': ['T*F', 'F'],'E': ['E+T', 'T']}
+gramR = {'C': ['cC', 'd'], 'S': ['CC']}
+first_dict = first(gramR)
+print("First")
+for nonterm in first_dict:
+  print(nonterm," --------- ",first_dict[nonterm])
+print("------------------------------------------------------------------------------\n")
+follow_dict = findFollow(start_symbol, productions, first_dict)
+print("Follow")
+for nonterm in follow_dict:
+  print(nonterm," --------- ",follow_dict[nonterm])
+print("------------------------------------------------------------------------------\n")
+print("SLR TABLE : ")
+find_slr_table()
+print("states",end=" ")
+for i in terminals:
+    print(i,end=" ")
+print("$",end=" ")
+for i in non_terminals:
+  print(i,end=" ")
+print("\n")
+for state in slr_table:
+  print(state,end="  ")
+  for action in slr_table[state]:
+    print(slr_table[state][action],end=" ")
+  print("\n")
